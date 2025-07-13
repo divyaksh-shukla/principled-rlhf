@@ -1,0 +1,26 @@
+# Core ML and RL frameworks
+gymnasium
+numpy
+
+# Optimization and scientific computing
+scipy
+scikit-learn
+
+# Visualization
+matplotlib
+seaborn
+
+# Data handling
+pandas
+
+# Optional: GPU support (uncomment if using CUDA)
+# torch-audio
+# torchvision
+
+# Development and testing (optional)
+jupyter
+ipython
+tqdm
+
+# Utilities
+# warnings
