@@ -89,18 +89,6 @@ class KwiseComparison:
                 breakpoint()
         return total_loss / len(self.data)
         
-        # for features, ranking in self.data:
-        #     for k in range(len(ranking)):
-        #         numerator = self.network(features[ranking[k]].unsqueeze(0))
-                
-        #         # Compute denominator (sum over remaining items)
-        #         remaining_features = features[ranking[k:]]
-        #         remaining_rewards = self.network(remaining_features)
-        #         denominator = torch.logsumexp(remaining_rewards, dim=0)
-                
-        #         total_loss -= (numerator - denominator)
-                
-        # return total_loss / len(self.data)
     
     def fit_mle_k(self, epochs=1000):
         """Fit MLE for K-wise comparisons (MLEK)"""
@@ -120,7 +108,7 @@ class KwiseComparison:
             
         return self.network.reward_head.weight.data.squeeze().clone()
     
-    def fit_mle_2(self, epochs=1000):
+    def fit_mle_2(self, epochs=1000, n_samples=-1):
         """Fit MLE by splitting K-wise into pairwise (MLE2)"""
         pairwise_mle = MLEEstimator(self.env, device=self.device)
         
@@ -138,5 +126,10 @@ class KwiseComparison:
                     action_j = ranking[j]
                     
                     pairwise_mle.add_comparison(action_i, action_j, 1)
+        
+        if n_samples > 0 and n_samples < len(pairwise_mle.data):
+            # Sample a subset of pairwise comparisons
+            indices = torch.randperm(len(pairwise_mle.data))[:n_samples]
+            pairwise_mle.data = [pairwise_mle.data[i] for i in indices]
         
         return pairwise_mle.fit(epochs=epochs)

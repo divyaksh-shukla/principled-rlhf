@@ -106,7 +106,7 @@ class PyTorchRLHFExperiment:
         """Plot experimental results"""
         self.save_results()  # Save results before plotting
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
-        
+        fontsize = 15
         # Plot 1: MLE estimation error
         # ax1.loglog(self.results['sample_sizes'], self.results['mle_estimation_error'], 
                 #    'b-o', label='MLE Estimation Error')
@@ -116,11 +116,12 @@ class PyTorchRLHFExperiment:
                          np.array(self.results['mle_estimation_error']) - np.array(self.results['mle_estimation_error_std']),
                          np.array(self.results['mle_estimation_error']) + np.array(self.results['mle_estimation_error_std']),
                          color='blue', alpha=0.2)
-        ax1.set_xlabel('Number of Samples (n)')
-        ax1.set_ylabel('Estimation Error ||θ̂ - θ*||')
-        ax1.set_title('MLE Convergence')
+        ax1.set_xlabel('Number of Samples (n)', fontsize=fontsize)
+        ax1.set_ylabel('Estimation Error ||θ̂ - θ*||', fontsize=fontsize)
+        ax1.set_title('MLE Convergence', fontsize=fontsize+5)
+        ax1.tick_params(axis='both', which='major', labelsize=fontsize)
         ax1.grid(True, alpha=0.3)
-        ax1.legend()
+        ax1.legend(fontsize=fontsize)
         
         # Plot 2: Suboptimality comparison
         # ax2.loglog(self.results['sample_sizes'], self.results['mle_suboptimality'], 
@@ -141,11 +142,12 @@ class PyTorchRLHFExperiment:
                          color='green', alpha=0.2)
         ax2.set_xscale('linear')
         ax2.set_yscale('linear')
-        ax2.set_xlabel('Number of Samples (n)')
-        ax2.set_ylabel('Suboptimality')
-        ax2.set_title('Policy Performance Comparison')
+        ax2.set_xlabel('Number of Samples (n)', fontsize=fontsize)
+        ax2.set_ylabel('Suboptimality', fontsize=fontsize)
+        ax2.set_title('Policy Performance Comparison', fontsize=fontsize+5)
+        ax2.tick_params(axis='both', which='major', labelsize=fontsize)
         ax2.grid(True, alpha=0.3)
-        ax2.legend()
+        ax2.legend(fontsize=fontsize)
         
         plt.tight_layout()
         plt.savefig('figures/rlhf_experiment_results.pdf', bbox_inches='tight')
@@ -181,8 +183,10 @@ class KwiseComparisonExperiment:
         self.results = {
             'theta_mlek': [],
             'theta_mle2': [],
+            'theta_mle2_same_size': [],
             'theta_mlek_error': [],
             'theta_mle2_error': [],
+            'theta_mle2_same_size_error': [],
             'k_action_feat': [],
             '2_action_feat': []
         }
@@ -190,18 +194,20 @@ class KwiseComparisonExperiment:
     def run_experiment(self, num_trials=100, epochs=500):
         """Run K-wise comparison experiment"""
         
-        pbar = tqdm(total=len(self.sample_sizes), ncols=120, desc=f"K={self.K}-wise Comparison")
+        pbar = tqdm(total=len(self.sample_sizes), ncols=120, desc=f"K={self.K}-wise Comparison", unit="sample")
         for n in self.sample_sizes:
             pbar.write(f"Running K-wise comparison with n={n} samples...")
             trial_results = {
                 'theta_mlek': [],
                 'theta_mle2': [],
+                'theta_mle2_same_size': [],
                 'theta_mlek_error': [],
                 'theta_mle2_error': [],
+                'theta_mle2_same_size_error': [],
                 'k_action_feat': [],
                 '2_action_feat': []
             }
-            
+            pbar2 = tqdm(total=num_trials, ncols=120, unit="trial")
             for _ in range(num_trials):
                 kwise = KwiseComparison(self.env, K=self.K, device=self.device)
                 # Generate some K-wise rankings
@@ -213,6 +219,7 @@ class KwiseComparisonExperiment:
                 # Fit both estimators
                 theta_mlek = kwise.fit_mle_k(epochs=epochs)
                 theta_mle2 = kwise.fit_mle_2(epochs=epochs)
+                theta_mle2_same_size = kwise.fit_mle_2(epochs=epochs, n_samples=n)
                 
                 features, ranking = [], []
                 for feat, rank in kwise.data:
@@ -232,18 +239,24 @@ class KwiseComparisonExperiment:
                 
                 theta_mlek_error = torch.sqrt((parameter_diff_mlek.T @ action_diffs @ parameter_diff_mlek)).item()
                 theta_mle2_error = torch.norm(theta_mle2 - self.env.theta_star).item()
+                theta_mle2_same_size_error = torch.norm(theta_mle2_same_size - self.env.theta_star).item()
                 
                 trial_results['theta_mlek'].append(theta_mlek.cpu().numpy())
                 trial_results['theta_mle2'].append(theta_mle2.cpu().numpy())
+                trial_results['theta_mle2_same_size'].append(theta_mle2_same_size.cpu().numpy())
                 trial_results['theta_mlek_error'].append(theta_mlek_error)
                 trial_results['theta_mle2_error'].append(theta_mle2_error)
+                trial_results['theta_mle2_same_size_error'].append(theta_mle2_same_size_error)
                 trial_results['k_action_feat'].append(features.cpu().numpy())
                 trial_results['2_action_feat'].append(self.env.action_features[ranking].cpu().numpy())
+                pbar2.update(1)
             
             self.results['theta_mlek'].append(np.mean(trial_results['theta_mlek'], axis=0))
             self.results['theta_mle2'].append(np.mean(trial_results['theta_mle2'], axis=0))
+            self.results['theta_mle2_same_size'].append(np.mean(trial_results['theta_mle2_same_size'], axis=0))
             self.results['theta_mlek_error'].append(np.mean(trial_results['theta_mlek_error']))
             self.results['theta_mle2_error'].append(np.mean(trial_results['theta_mle2_error']))
+            self.results['theta_mle2_same_size_error'].append(np.mean(trial_results['theta_mle2_same_size_error']))
             self.results['k_action_feat'].append(np.mean(trial_results['k_action_feat'], axis=0))
             self.results['2_action_feat'].append(np.mean(trial_results['2_action_feat'], axis=0))  
             pbar.update(1) 
@@ -253,16 +266,20 @@ class KwiseComparisonExperiment:
     def plot_results(self):
         """Plot K-wise comparison results"""
         fig, ax = plt.subplots(figsize=(10, 6))
+        fontsize = 15
         
         ax.plot(self.sample_sizes, self.results['theta_mlek_error'],
                 'b-o', label='MLEK Error')
         ax.plot(self.sample_sizes, self.results['theta_mle2_error'],
                 'r-s', label='MLE2 Error')
+        ax.plot(self.sample_sizes, self.results['theta_mle2_same_size_error'],
+                'g-^', label='MLE2 Error (same size)')
         
-        ax.set_xlabel('Sample Sizes')
-        ax.set_ylabel('Estimation Error ||θ̂ - θ*||')
-        ax.set_title('K-wise Comparison Results')
-        ax.legend()
+        ax.set_xlabel('Sample Sizes', fontsize=fontsize)
+        ax.set_ylabel('Estimation Error ||θ̂ - θ*||', fontsize=fontsize)
+        ax.set_title('K-wise Comparison Results', fontsize=fontsize+5)
+        ax.tick_params(axis='both', which='major', labelsize=fontsize)
+        ax.legend(fontsize=fontsize)
         
         plt.tight_layout()
         plt.savefig(f'figures/kwise_comparison_results_K{self.K}.pdf', bbox_inches='tight')
@@ -303,7 +320,10 @@ if __name__ == "__main__":
         reward = env.get_reward(i).item()
         print(f"  a{i+1}: {feat.cpu().numpy()} -> reward: {reward:.3f}")
     
-    # Run experiments
+    ###########################################################################
+    # Plot 1
+    ###########################################################################
+    # Create experiments
     experiment = PyTorchRLHFExperiment(env, device=device)
     
     # load and plot the results if they exist
@@ -313,3 +333,28 @@ if __name__ == "__main__":
         experiment.load_results(results_file)
     else:
         print("No existing results found, please run the experiment.")
+    
+    ###########################################################################
+    # Plot 2
+    ###########################################################################
+    sample_sizes = [10] + np.arange(100, 501, 100).tolist()  # Sample sizes from 50 to 500 in steps of 50
+    env = KRandomBanditRLHFEnv(device=device, actions=4)  # Use 4 actions for K-wise comparison
+    experiment = KwiseComparisonExperiment(env, sample_sizes=sample_sizes, K=4, device=device)
+    
+    print(f"Loading K=4-wise comparison experiments with sample sizes: {sample_sizes}")
+    if Path('saves/kwise_comparison_results_K4.npz').exists():
+        print("Loading existing K=4-wise comparison results...")
+        experiment.load_results('saves/kwise_comparison_results_K4.npz')
+    else:
+        print("No existing K=4-wise comparison results found, running the experiment.")
+    
+    env = KRandomBanditRLHFEnv(device=device, actions=9)  # Use 9 actions for K-wise comparison
+    experiment = KwiseComparisonExperiment(env, sample_sizes=sample_sizes, K=9, device=device)
+    
+    print(f"Loading K=9-wise comparison experiments with sample sizes: {sample_sizes}")
+    if Path('saves/kwise_comparison_results_K9.npz').exists():
+        print("Loading existing K=9-wise comparison results...")
+        experiment.load_results('saves/kwise_comparison_results_K9.npz')
+    else:
+        print("No existing K=9-wise comparison results found, running the experiment.")
+    

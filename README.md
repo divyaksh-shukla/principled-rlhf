@@ -4,6 +4,7 @@ An implementation of the paper "Principled Reinforcement Learning with Human Fee
 
 - [arxiv](http://arxiv.org/abs/2301.11270)
 - [PMLR](https://proceedings.mlr.press/v202/zhu23f/zhu23f.pdf)
+- [Presentation](https://drive.google.com/file/d/1f-vedJ-mnQGxdQ15O32rctQmuqq3LCyv/view?usp=sharing)
 ---
 
 ## Table of Contents

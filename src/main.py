@@ -68,7 +68,7 @@ def main():
     experiment = KwiseComparisonExperiment(env, sample_sizes=sample_sizes, K=9, device=device)
     
     print(f"\nRunning K=9-wise comparison experiments with sample sizes: {sample_sizes}")
-    experiment.run_experiment(num_trials=50, epochs=300)
+    experiment.run_experiment(num_trials=10, epochs=300)
     
     # Plot K-wise comparison results
     experiment.plot_results()
